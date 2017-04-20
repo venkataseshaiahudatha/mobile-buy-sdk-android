@@ -1,0 +1,110 @@
+buildscript {
+    dependencies {
+        classpath dep.androidPlugin
+        classpath dep.retrolambda
+        classpath dep.apolloPlugin
+    }
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'me.tatarka.retrolambda'
+apply plugin: 'com.apollographql.android'
+
+android {
+    compileSdkVersion androidConfig.compileSdkVersion
+    buildToolsVersion androidConfig.buildToolsVersion
+
+    defaultConfig {
+        applicationId "com.shopify.mobilebuy.sample2"
+        minSdkVersion androidConfig.minSdkVersion
+        targetSdkVersion androidConfig.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+    buildTypes {
+        all {
+            // We pull the shop settings either from the Environment or a file called shop.properties at the root of the project.
+            // Environment variables will take precedence, we will attempt to read those first.
+            def shopDomain
+            def apiKey
+            def androidPayPublicKey
+
+            // get the shop setting from the environment if there any
+            shopDomain = System.getenv("SHOP_DOMAIN")
+            apiKey = System.getenv("API_KEY")
+            androidPayPublicKey = System.getenv("ANDROID_PAY_PUBLIC_KEY")
+
+            // pull the store properties from the local file if it exists.  Environment variables take precedence
+            def shopProperties = new Properties();
+            File shopPropertiesFile = project.file('shop.properties')
+
+            if (shopPropertiesFile.exists()) {
+                shopProperties.load(new FileInputStream(shopPropertiesFile))
+                shopDomain = shopDomain ?: shopProperties["SHOP_DOMAIN"]
+                apiKey = apiKey ?: shopProperties["API_KEY"]
+                androidPayPublicKey = androidPayPublicKey ?: shopProperties["ANDROID_PAY_PUBLIC_KEY"]
+            }
+
+            if (!shopDomain) {
+                shopDomain = ""
+            }
+            if (!apiKey) {
+                apiKey = ""
+            }
+            if (!androidPayPublicKey) {
+                androidPayPublicKey = ""
+            }
+
+            buildConfigField "String", "SHOP_DOMAIN", "\"" + shopDomain.toString() + "\""
+            buildConfigField "String", "API_KEY", "\"" + apiKey.toString() + "\""
+            buildConfigField "String", "ANDROID_PAY_PUBLIC_KEY", "\"" + androidPayPublicKey.toString() + "\""
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile dep.androidSupportDesign
+    compile dep.androidSupportV4
+    compile dep.androidSupportV7
+    compile dep.androidSupportAnnotations
+    compile dep.constraintLayout
+
+    compile dep.apolloApi
+    compile dep.apolloRuntime
+    compile dep.okhttpLogging
+}
+
+task downloadApolloSchema(type: DefaultTask, group: "GraphQL", description: "Download GraphQL store front API schema") {
+    doLast {
+        println("Downloading GraphQL schema...")
+        def schemaFile = new File(project.projectDir.absolutePath + '/src/main/java/com/shopify/mobilebuy/sample2/schema.json')
+        if (schemaFile.exists()) {
+            schemaFile.delete()
+        }
+        new URL('https://app.shopify.com/services/ping/storefront_graphql_schema').withInputStream { i ->
+            schemaFile.withOutputStream {
+                it << i
+            }
+        }
+        println("GraphQL schema has been downloaded!")
+    }
+}
+
+apollo {
+    customTypeMapping['URL'] = "String"
+    customTypeMapping['HTML'] = "String"
+    customTypeMapping['Money'] = "java.math.BigDecimal"
+}
