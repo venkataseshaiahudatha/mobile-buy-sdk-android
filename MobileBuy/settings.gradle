@@ -1,1 +1,1 @@
-include ':sample', ':buy', ':android-pay'
+include ':sample', ':buy', ':android-pay', ':sample2'

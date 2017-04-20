@@ -11,10 +11,10 @@ def versions = [
 ext.isCi = "true" == System.getenv('CI')
 
 ext.androidConfig = [
-    compileSdkVersion: 24,
+    compileSdkVersion: 25,
     buildToolsVersion: '25.0.2',
     minSdkVersion    : 19,
-    targetSdkVersion : 24,
+    targetSdkVersion : 25,
 ]
 
 ext.dep = [
