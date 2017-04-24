@@ -1,10 +1,13 @@
 package com.shopify.mobilebuy.sample2;
 
+import android.content.Intent;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
@@ -12,14 +15,16 @@ import com.shopify.buy3.GraphCall;
 import com.shopify.buy3.GraphClient;
 import com.shopify.buy3.GraphError;
 import com.shopify.buy3.Storefront;
+import com.shopify.graphql.support.ID;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import okhttp3.OkHttpClient;
 
-public class CollectionActivity extends AppCompatActivity {
-    private ArrayList<String> collectionNames;
-    private ArrayAdapter<String> collectionNamesAdapter;
+public class CollectionsActivity extends AppCompatActivity {
+    private ArrayList<Storefront.Collection> collectionNames;
+    private CollectionsAdapter collectionNamesAdapter;
     private ListView collectionsList;
 
     private static final String SHOP_PROPERTIES_INSTRUCTION =
@@ -41,20 +46,22 @@ public class CollectionActivity extends AppCompatActivity {
 
         collectionsList = (ListView) findViewById(R.id.collectionsList);
         collectionNames = new ArrayList<>();
-        collectionNamesAdapter = new ArrayAdapter<>(this,
+        collectionNamesAdapter = new CollectionsAdapter(this,
                 android.R.layout.simple_list_item_1, collectionNames);
         collectionsList.setAdapter(collectionNamesAdapter);
 
-        new Thread(() -> addCollectionNames(queryCollections("", 5))).start();
-    }
+        collectionsList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Storefront.Collection item = (Storefront.Collection)parent.getItemAtPosition(position);
+                Intent myIntent = new Intent(CollectionsActivity.this, ProductsActivity.class);
+                myIntent.putExtra("Title", item.getTitle());
+                myIntent.putExtra("Id", item.getId().toString());
+                CollectionsActivity.this.startActivity(myIntent);
+            }
+        });
 
-    private void addCollectionNames(Storefront.QueryRoot root) {
-        root.getShop().getCollections().getEdges().forEach(
-                e -> collectionNames.add(e.getNode().getTitle())
-        );
-        if (collectionNamesAdapter != null) {
-            runOnUiThread(() -> collectionNamesAdapter.notifyDataSetChanged());
-        }
+        new Thread(() -> addCollectionNames(queryCollections("", 5))).start();
     }
 
     private void initializeGraphClient() {
@@ -79,14 +86,29 @@ public class CollectionActivity extends AppCompatActivity {
                 .build();
     }
 
+    private void addCollectionNames(Storefront.QueryRoot root) {
+        List<Storefront.CollectionEdge> edges = root.getShop().getCollections().getEdges();
+
+        String cursor = "";
+        for (Storefront.CollectionEdge e : edges) {
+            collectionNames.add(e.getNode());
+            cursor = e.getCursor();
+        }
+
+        runOnUiThread(() -> collectionNamesAdapter.notifyDataSetChanged());
+        if (edges.size() == 5) {
+            addCollectionNames(queryCollections(cursor, 5));
+        }
+    }
+
     private Storefront.QueryRoot queryCollections(@Nullable final String cursor, final int numPerPage){
         Storefront.QueryRoot ret = null;
            GraphCall<Storefront.QueryRoot> c = graphClient.queryGraph(Storefront.query(
                 root -> root.shop(
                         shop -> shop.collections(
-                                5,
+                                numPerPage,
                                 args -> args
-                                        .after(null)
+                                        .after(TextUtils.isEmpty(cursor) ? null : cursor)
                                         .sortKey(Storefront.CollectionSortKeys.TITLE),
                                 collectionConnection -> collectionConnection
                                         .edges(collectionEdge -> collectionEdge
@@ -95,7 +117,7 @@ public class CollectionActivity extends AppCompatActivity {
                                                         .title()
                                                         .description()
                                                         .image(Storefront.ImageQuery::src)
-                                                        .products(5, productConnection -> productConnection
+                                                        .products(numPerPage, productConnection -> productConnection
                                                                 .edges(productEdge -> productEdge
                                                                         .cursor()
                                                                         .node(product -> product
@@ -116,7 +138,6 @@ public class CollectionActivity extends AppCompatActivity {
           ));
         try {
             ret = c.execute().data();
-            Log.d("SAMPLE", ret==null ? "NULL":"gucci");
         } catch (GraphError e) {
             Log.e("SAMPLE", e.toString());
         }
