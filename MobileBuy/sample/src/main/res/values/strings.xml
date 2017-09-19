@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Mobile Buy Sample</string>
+    <string name="app_name">Buy3 Sample</string>
     <string name="collection_list_title">Collections</string>
     <string name="default_error">Oops, something went wrong, please try again …</string>
     <string name="price_from">From %s</string>

@@ -17,7 +17,7 @@ android {
   buildToolsVersion androidConfig.buildToolsVersion
 
   defaultConfig {
-    applicationId "com.shopify.sample"
+    applicationId "me.henrytao.com.shopify.sample"
     minSdkVersion androidConfig.minSdkVersion
     targetSdkVersion androidConfig.targetSdkVersion
     versionCode 1
@@ -78,6 +78,9 @@ android {
 
       debuggable = true
       minifyEnabled = false
+    }
+    release {
+      debuggable = true
     }
   }
 
